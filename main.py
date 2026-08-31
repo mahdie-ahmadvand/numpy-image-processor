@@ -30,7 +30,7 @@ def parse_arguments():
     parser.add_argument(
         "--op" ,
         required=True ,
-        choices=["gray","invert","brightness","split"] ,
+        choices=["gray","gray_loop","invert","brightness","split"] ,
         help="Image operation"
     )
 
@@ -62,47 +62,90 @@ def gray_loop(img):
 
     return gray
 
+def gray_numpy(img):
+
+    gray = (
+        img[:,:,0] * 0.114 +
+        img[:,:,1] * 0.587 +
+        img[:,:,2] * 0.299
+    )
+    return gray.astype(np.uint8)
+
+def invert_image(img):
+
+    return(255-img).astype(np.uint8)
+
+def adjust_brightness(img,value):
+    temp = img.astype(np.int16) + value
+
+    clipped = np.clip(temp , 0 , 255)
+    return clipped.astype(np.uint8)
+
+def split_channels(img):
+    b = img[:,:,0]
+    g = img[:,:,1]
+    r = img[:,:,2]
+    return b, g, r
+
 def main():
-
     args = parse_arguments()
+    input_path = Path(args.input)
 
-    input_Path = Path(args.input)
-
-    if not input_Path.exists():
-        print(f"Error: input path does not exist: {input_Path}")
+    if not input_path.exists():
+        print(f"Error input_path dose not exist : {input_path}")
+        sys.exit(1)
+            
+    if not input_path.is_file():
+        print("Error:  folder processing has not been implemented yet.")
         sys.exit(1)
 
-    if not input_Path.is_file():
-        print("Error: folder processing has not been implemented yet.")
-        sys.exit(1)
-
-    if args.op != "gray" :
-        print("Error: currently only gray operation is implemented.")
-        sys.exit(1)
-
-    if args.output is None :
-        print("Error: --output is required for gray operation.")
-        sys.exit(1)
-
-    img=cv2.imread(str(input_Path))
+    img = cv2.imread(str(input_path))
     if img is None:
-        print(f"Error: cannot read image file: {input_Path}")
+        print(f"Error cannot read image file(corropted or unsupported format): {input_path}")
         sys.exit(1)
 
-    gray_img = gray_loop(img)
+    if args.op == "split":
+      if args.outdir is None:
+        print("Error: --outdir is required for 'split' operation")
+        sys.exit(1)    
+      out_dir = Path(args.outdir)
+      out_dir.mkdir(parents=True, exist_ok=True)    
 
-    success = cv2.imwrite (args.output , gray_img)
+      b, g, r = split_channels(img)
+      stem = input_path.stem
 
-    if not success :
-        print(f"Error: could not save output image: {args.output}")
+      cv2.imwrite(str(out_dir / f"{stem}_B.png"), b)
+      cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
+      cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
+      print(f"Done: split channels saved to {out_dir}/")
+      return
+    if args.output is None:
+        print(f"Error:--output is required for '{args.op}' operation.")
+        sys.exit(1)
+    if args.op == "gray":
+        result = gray_numpy(img)
+    elif args.op == "gray_loop": 
+        result = gray_loop(img)
+
+    elif args.op == "invert":
+        result = invert_image(img)
+
+    elif args.op == "brightness":
+        if args.value is None:
+            print("Error:value is required for 'brightness' operatio    ")
+            sys.exit(1)
+        if not (-255<= args.value <= 255):
+            print("Error:value must be between -255 and 255.")
+            sys.exit(1)
+        result = adjust_brightness(img, args.value)
+
+    success = cv2.imwrite(args.output, result)
+    if not success:
+        print(f"Error: codnot save output image to {args.output} ") 
         sys.exit(1)
 
-    print(f"Done: saved grayscale image to {args.output}")
-
-if __name__ == "__main__":
-    main()
+if __name__ =="__main__":
+        main()                  
 
 
 
- 
-    
