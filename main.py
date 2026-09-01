@@ -1,6 +1,7 @@
 import  argparse
 import sys
 from pathlib import Path
+import time
 
 import cv2
 import numpy as np
@@ -38,6 +39,12 @@ def parse_arguments():
         "--value",
         type=int , 
         help= "Brightness value from -255 to 255"
+    )
+
+    parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Mesure and desplay execution time"
     )
 
     return parser.parse_args()
@@ -109,19 +116,32 @@ def main():
         print("Error: --outdir is required for 'split' operation")
         sys.exit(1)    
       out_dir = Path(args.outdir)
-      out_dir.mkdir(parents=True, exist_ok=True)    
+      out_dir.mkdir(parents=True, exist_ok=True)  
 
+      start_time = time.perf_counter()
       b, g, r = split_channels(img)
+      elapsed_time= time.perf_counter() - start_time  
+
+    
       stem = input_path.stem
 
       cv2.imwrite(str(out_dir / f"{stem}_B.png"), b)
       cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
       cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
+
+      if args.benchmark:
+           print(f"⏱️ Execution Time for 'split': {elapsed_time:.6f} seconds")
+
       print(f"Done: split channels saved to {out_dir}/")
       return
+
+
     if args.output is None:
         print(f"Error:--output is required for '{args.op}' operation.")
         sys.exit(1)
+
+    start_time = time.perf_counter()
+
     if args.op == "gray":
         result = gray_numpy(img)
     elif args.op == "gray_loop": 
@@ -139,10 +159,16 @@ def main():
             sys.exit(1)
         result = adjust_brightness(img, args.value)
 
+    elapsed_time = time.perf_counter() - start_time    
+
+    if args.benchmark:
+        print(f"⏱️ Execution time for '{args.op}': {elapsed_time:.6f}seconds")
     success = cv2.imwrite(args.output, result)
     if not success:
         print(f"Error: codnot save output image to {args.output} ") 
         sys.exit(1)
+
+    print(f"Done: saved {args.op} image to {args.output}")
 
 if __name__ =="__main__":
         main()                  
