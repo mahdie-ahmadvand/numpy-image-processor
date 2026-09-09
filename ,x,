@@ -1,0 +1,53 @@
+[33mcommit ea752c4935aa0d26d645bedcc5d588c18064b013[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Wed Sep 9 15:55:15 2026 +0330
+
+    all of plots are work correctly
+
+[33mcommit 3347fd6c3286267a7d75f4c51e8b78a3500ef4fe[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Wed Sep 2 14:12:56 2026 +0330
+
+    added foler processing to project
+
+[33mcommit 6bb20bed25f9fab331b7beb9a8f9e43ba53f4db9[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Tue Sep 1 11:26:11 2026 +0330
+
+    added mesuretime and benchmark
+
+[33mcommit 9973cc07ca4610ac5e6d5ec5c197f9f83e6bfdce[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Tue Sep 1 11:22:50 2026 +0330
+
+    docs: add performance benchmark comparing gray_loop and gray_numpy
+
+[33mcommit 43a8073a83beb7f1b4761e40da0c8b644bc12308[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Mon Aug 31 18:04:14 2026 +0330
+
+    the project finished
+
+[33mcommit 6c2da590828462931f5e10a75011614a089a6a55[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Fri Aug 28 18:56:41 2026 +0330
+
+    the file converted bgr2gray
+
+[33mcommit f5f4d479de807b653c7a7c63f012917f3ab14883[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Thu Aug 27 17:25:18 2026 +0330
+
+    numpy and opencv added
+
+[33mcommit b595a650df56f6a3f1ef945ca6a175b57cbb6981[m
+Author: mahdie-ahmadvand <madiahmadvand6@gmail.com>
+Date:   Thu Aug 27 17:23:46 2026 +0330
+
+    project started
+
+[33mcommit 6dc1b0a0c17e2cacc5ff1f1add290751baa6e909[m
+Author: mahdie_ahmadvand_315 <ahmadvand.mahdi.mechic.2382@gmail.com>
+Date:   Thu Aug 27 18:00:09 2026 +0330
+
+    Initial commit
