@@ -6,6 +6,7 @@ import time
 
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 VALID_EXTENSIONS = {".jpg",".jpeg",".png",".bmp",".webp"}
 
@@ -33,7 +34,7 @@ def parse_arguments():
     parser.add_argument(
         "--op" ,
         required=True ,
-        choices=["gray","gray_loop","invert","brightness","split"] ,
+        choices=["gray","gray_loop","invert","brightness","split","histogram"] ,
         help="Image operation"
     )
 
@@ -97,6 +98,50 @@ def split_channels(img):
     r = img[:,:,2]
     return b, g, r
 
+def compute_histogram_1d(channel_2d):
+     """محاسبه فراوانی هر مقدار روشنایی (0 تا 255) با NumPy خالص"""
+     return np.bincount(channel_2d.ravel(),minlength=256)
+
+def compute_histogram(img):
+    """محاسبه هیستوگرام بر اساس تک‌کاناله (Grayscale) یا سه‌کاناله (BGR) بودن تصویر"""
+    if len (img.shape) == 2 or img.shape[2]==1:
+        return {"Gray":compute_histogram_1d(img)}
+    else :
+        return{
+            "Blue":compute_histogram_1d(img[:,:,0]),
+            "Green":compute_histogram_1d(img[:,:,1]),
+            "Red" : compute_histogram_1d(img[:,:,2])
+        }
+
+def plot_and_savehistogram(hist_dict,save_path):
+       """رسم هیستوگرام با Matplotlib و ذخیره به عنوان تصویر خروجی"""
+       plt.figure(figsize=(8,5))
+       x= np.arange(256)
+
+       colors ={
+        "Blue": "blue",
+        "Green": "green",
+        "Red": "red",
+        "Gray": "black",
+       }   
+
+       for name , counts in hist_dict.items():
+           plt.plot(x,counts,color=colors.get(name,"black"),label=f"{name} chanel",
+                    linewidth=1.5,)
+
+        
+       plt.title("pixel intensity histogram")
+       plt.xlabel("pixel intensity (0-255)")  
+       plt.ylabel("frequency (count)")
+       plt.xlim([0,255])
+       plt.grid(True,linestyle="--",alpha=0.5)
+       plt.legend(loc="upper right")
+       plt.tight_layout()
+       plt.savefig(str(save_path),dpi=300)
+       plt.close()
+
+       
+       
 def process_single_image(img, op, value=None):
 
     start_time = time.perf_counter()
@@ -114,6 +159,10 @@ def process_single_image(img, op, value=None):
 
     elif op == "split":
         result = split_channels(img)
+
+    elif op == "histogram" :
+        result = compute_histogram(img)
+    
 
     elapsed_time = time.perf_counter() - start_time
     return result, elapsed_time
@@ -156,12 +205,17 @@ def process_folder(folder_path, out_dir,args):
             cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
             cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
 
+        elif args.op == "histogram":
+            plot_path = out_dir / f"{stem}_hist.png"
+            plot_and_savehistogram(result, plot_path)   
+
         else:
             out_file = out_dir / f"{stem}_{args.op}.png"
             cv2.imwrite(str(out_file), result)
 
         log_data.append([img_path.name, dims, args.op, f"{elapsed_time:.6f}"])
         print(f"  Processed: {img_path.name} ({dims}) in {elapsed_time:.4f}s")
+        
     with open(csv_path, mode="w", newline="",encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["filename","dimensions","operation","execution_time_sec"])
@@ -193,7 +247,9 @@ def main():
                 sys.exit(1)
             if not (-255 <= args.value <= 255):
                 print("Error: --value must be between -255 and 255.")
-                sys.exit(1)    
+                sys.exit(1)   
+
+                 
 
     img = cv2.imread(str(input_path))
     if img is None:
@@ -218,12 +274,17 @@ def main():
         cv2.imwrite(str(out_dir / f"{stem}_B.png"), b)
         cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
         cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
-  
 
+    elif args.op == "histogram" :  
+        if args.output is None :
+            print(f"Error: --output is required for 'histogram' operation.")
+            sys.exit(1)
+        result,elapsed_time =process_single_image(img,"histogram")
+        plot_and_savehistogram(result,args.output)
     
         if args.benchmark:
-           print(f"⏱️ Execution Time for 'split': {elapsed_time:.6f} seconds")
-        print(f"Done: split channels saved to {out_dir}/")
+           print(f"⏱️ Execution Time for 'histogram': {elapsed_time:.6f} seconds")
+        print(f"Done: split channels saved to {args.output}/")
         
     else:
 
