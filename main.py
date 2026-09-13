@@ -34,7 +34,8 @@ def parse_arguments():
     parser.add_argument(
         "--op" ,
         required=True ,
-        choices=["gray","gray_loop","invert","brightness","split","hsv_split","histogram"] ,
+        choices=["gray","gray_loop","invert","brightness","split",
+                 "hsv_split","histogram","threshold"] ,
         help="Image operation"
     )
 
@@ -105,6 +106,16 @@ def split_hsv(img):
     v=hsv_img[:,:,2]
     return h, s, v
 
+def apply_threshold(img, thresh_val):
+
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img
+
+    ret , thresh_img = cv2.threshold(gray, thresh_val , 255 , cv2.THRESH_BINARY)
+    return thresh_img        
+
 def compute_histogram_1d(channel_2d):
      """محاسبه فراوانی هر مقدار روشنایی (0 تا 255) با NumPy خالص"""
      return np.bincount(channel_2d.ravel(),minlength=256)
@@ -172,6 +183,10 @@ def process_single_image(img, op, value=None):
 
     elif op == "histogram" :
         result = compute_histogram(img)
+
+    elif op == "threshold":
+        result = apply_threshold(img, value)
+
     
 
     elapsed_time = time.perf_counter() - start_time
@@ -266,6 +281,17 @@ def main():
                 print("Error: --value must be between -255 and 255.")
                 sys.exit(1)   
 
+
+    if args.op == "threshold" :
+    
+        if args.value is None:
+            print("Error: --value is required for 'threshold' operation (e.g. --value 128).")
+            sys.exit(1)
+    
+        if not(0 <= args.value <= 255) :
+                print("Error: --value for threshold must be between 0 and 255.")
+                sys.exit(1)
+    
                  
 
     img = cv2.imread(str(input_path))
@@ -291,6 +317,9 @@ def main():
         cv2.imwrite(str(out_dir / f"{stem}_B.png"), b)
         cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
         cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
+
+
+    
 
     elif args.op == "hsv_split":
         if args.outdir is None :
