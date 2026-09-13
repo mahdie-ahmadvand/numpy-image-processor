@@ -34,7 +34,7 @@ def parse_arguments():
     parser.add_argument(
         "--op" ,
         required=True ,
-        choices=["gray","gray_loop","invert","brightness","split","histogram"] ,
+        choices=["gray","gray_loop","invert","brightness","split","hsv_split","histogram"] ,
         help="Image operation"
     )
 
@@ -98,6 +98,13 @@ def split_channels(img):
     r = img[:,:,2]
     return b, g, r
 
+def split_hsv(img):
+    hsv_img = cv2.cvtColor(img , cv2.COLOR_BGR2HSV)
+    h=hsv_img[:,:,0]
+    s=hsv_img[:,:,1]
+    v=hsv_img[:,:,2]
+    return h, s, v
+
 def compute_histogram_1d(channel_2d):
      """محاسبه فراوانی هر مقدار روشنایی (0 تا 255) با NumPy خالص"""
      return np.bincount(channel_2d.ravel(),minlength=256)
@@ -160,6 +167,9 @@ def process_single_image(img, op, value=None):
     elif op == "split":
         result = split_channels(img)
 
+    elif op == "hsv_split":
+        result = split_hsv(img)    
+
     elif op == "histogram" :
         result = compute_histogram(img)
     
@@ -204,6 +214,13 @@ def process_folder(folder_path, out_dir,args):
             cv2.imwrite(str(out_dir / f"{stem}_B.png"), b)
             cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
             cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
+
+        elif args.op == "hsv_split":
+            h_ch ,s_ch , v_ch = result
+            cv2.imwrite(str(out_dir/f"{stem}_H.png"),h_ch) 
+            cv2.imwrite(str(out_dir/f"{stem}_S.png"),s_ch)    
+            cv2.imwrite(str(out_dir/f"{stem}_V.png"),v_ch)    
+               
 
         elif args.op == "histogram":
             plot_path = out_dir / f"{stem}_hist.png"
@@ -275,10 +292,30 @@ def main():
         cv2.imwrite(str(out_dir / f"{stem}_G.png"), g)
         cv2.imwrite(str(out_dir / f"{stem}_R.png"), r)
 
+    elif args.op == "hsv_split":
+        if args.outdir is None :
+            print("Error: --outdir is required for 'hsv_split' operation.")
+            sys.exit(1)
+        out_dir = Path(args.outdir) 
+        out_dir.mkdir(parents=True, exist_ok=True)
+        result, elapsed_time= process_single_image(img, "hsv_split")
+        h_ch, s_ch, v_ch = result
+        stem = input_path.stem
+
+        cv2.imwrite(str(out_dir /f"{stem}_H.png"),h_ch)
+        cv2.imwrite(str(out_dir /f"{stem}_S.png"),s_ch)
+        cv2.imwrite(str(out_dir /f"{stem}_V.png"),v_ch)
+
+        if args.benchmark:
+            print(f"⏱️ Execution Time for 'hsv_split': {elapsed_time:.6f} seconds")
+        print(f"Done: HSV channels (H, S, V) saved to {out_dir}/")
+
+        
     elif args.op == "histogram" :  
         if args.output is None :
             print(f"Error: --output is required for 'histogram' operation.")
             sys.exit(1)
+    
         result,elapsed_time =process_single_image(img,"histogram")
         plot_and_savehistogram(result,args.output)
     
