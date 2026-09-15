@@ -311,7 +311,8 @@ V Channel (Value): Simulates the intensity of light or brightness, which is very
 
 +       if args.op == "threshold":
 +        if args.value is None:
-+            print("Error: --value is required for 'threshold' operation (e.g. --value 128).")
++            print("Error: --value is required for 'threshold' operation (e.
+--value 128).")
 +            sys.exit(1)
 +       if not (0 <= args.value <= 255):
 +            print("Error: --value for threshold must be between 0 and 255.")
@@ -336,3 +337,117 @@ cv2.imread
 In the following, we will examine exactly what the cv2.threshold function does in OpenCV and how its mathematical mechanism and parameters work.
 
    
+
+
+4.  # def color_filter :
+
+
+
+    parser.add_argument(
+        "--op",
+        required=True,
+        choices=[
+            "gray",
+            "gray_loop",
+            "invert",
+            "brightness",
+            "split",
+            "hsv_split",
+            "histogram",
+            "threshold",
++           "color_filter",  # <-- انتخاب عملیات فیلتر رنگ
+        ],
+        help="Image operation",
+    )
+
+
++        parser.add_argument(
++        "--hsv-bounds",
++        nargs=6,
++        type=int,
++        metavar=("H_MIN", "S_MIN", "V_MIN", "H_MAX", "S_MAX", "V_MAX"),
++        help="6 values: H_min S_min V_min H_max S_max V_max",
++    )
+
+
++ def apply_color_filter(img, lower_hsv, upper_hsv):
++    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
++    lower_bound = np.array(lower_hsv, dtype=np.uint8)
++    upper_bound = np.array(upper_hsv, dtype=np.uint8)
+
++    mask = cv2.inRange(hsv, lower_bound, upper_bound)
++    filtered_img = cv2.bitwise_and(img, img, mask=mask)
+
++    active_pixels = cv2.countNonZero(mask)
++    total_pixels = mask.shape[0] * mask.shape[1]
++    mask_pct = (active_pixels / total_pixels) * 100
++    return filtered_img, mask_pct
+
+
+
+    **process_single_image**
+
++        elif op == "color_filter":
++        lower_hsv = hsv_bounds[:3]
++        upper_hsv = hsv_bounds[3:]
++        result = apply_color_filter(img, lower_hsv, upper_hsv)
+
+
+
+      **process_folder**
+
+
+
++        elif args.op == "color_filter":
++            filtered_img, pct = result
++            out_file = out_dir / f"{stem}_filtered.png"
++            cv2.imwrite(str(out_file), filtered_img)
+
+
+      **main**
+
+
++          elif args.op == "color_filter":
++        if args.output is None:
++            print("Error: --output is required for 'color_filter' operation.")
++            sys.exit(1)
++        (filtered_img, pct), elapsed_time = process_single_image(
++            img, "color_filter", hsv_bounds=args.hsv_bounds
++        )
++        print(f"[INFO] Color mask covers: {pct:.2f}% of the image.")
+
++        if args.benchmark:
++            print(f"⏱️ Execution Time for 'color_filter':{elapsed_time:.6f}seconds")
+
++        cv2.imwrite(args.output, filtered_img)
++        print(f"[SUCCESS] Saved output to {args.output}")
+
+
+
+      **mistakes:**
+
+1.    active_pixels = cv2.countNonzero(mask)  # ❌ غلط (حرف z کوچک است)
+      active_pixels = cv2.countNonZero(mask)  # ✅ درست: countNonZero
+
+2.         if args.op == "split":
+        ...
+    if args.op == "color_filter":  # ❌ باید elif باشد نه if مستقل
+        ...
+    elif args.op == "hsv_split":
+        ...
+    elif args.op == "histogram":
+        ...
+    else:
+        # ذخیره تصویر معمولی (مثل threshold, brightness, gray و ...)
+        ...
+
+
+
+     **describtion of def color_filter**
+
+     The color filter function searches for a specific color based on a given --hsv-bounds by terminal, considering predefined characteristics such as specific brightness (Value) and saturation levels. This technique has numerous applications in the field of computer vision.
+
+
+
+
+     **Testing with the red color spectrum:**yielded successful results; however, it revealed a significant technical challenge. Since the red hue is distributed across two distinct ranges in the HSV color space (approximately 170 _ 179 ,   0 _10 ), it creates a discontinuity. This wrap-around effect poses a challenge when attempting to detect desaturated or lighter shades of red, as they may fall outside a single continuous threshold.
