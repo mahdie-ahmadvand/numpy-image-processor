@@ -35,7 +35,7 @@ def parse_arguments():
         "--op" ,
         required=True ,
         choices=["gray","gray_loop","invert","brightness","split",
-                 "hsv_split","histogram","threshold"] ,
+                 "hsv_split","histogram","threshold","color_filter"] ,
         help="Image operation"
     )
 
@@ -49,6 +49,16 @@ def parse_arguments():
         "--benchmark",
         action="store_true",
         help="Mesure and desplay execution time"
+
+    )
+
+    parser.add_argument(
+
+        "--hsv-bounds",
+        nargs=6,
+        type=int,
+        metavar=('H_MIN' , 'S_MIN' , 'V_MIN' , 'H_MAX' , 'S_MAX' , 'V_MAX'),
+        help=  "6 values: H_min S_min V_min H_max S_max V_max"  
     )
 
     return parser.parse_args()
@@ -114,7 +124,21 @@ def apply_threshold(img, thresh_val):
         gray = img
 
     ret , thresh_img = cv2.threshold(gray, thresh_val , 255 , cv2.THRESH_BINARY)
-    return thresh_img        
+    return thresh_img 
+
+def apply_color_filter(img, lower_hsv, upper_hsv):
+    hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+    lower_bound = np.array(lower_hsv, dtype=np.uint8)
+    upper_bound = np.array(upper_hsv,dtype=np.uint8)
+
+    mask = cv2.inRange(hsv , lower_bound, upper_bound)
+    filtered_img = cv2.bitwise_and(img, img, mask=mask)
+
+    active_pixels = cv2.countNonZero(mask)
+    total_pixels = mask.shape[0] * mask.shape[1]
+    mask_pct = (active_pixels / total_pixels)*100
+    return filtered_img, mask_pct      
+
 
 def compute_histogram_1d(channel_2d):
      """محاسبه فراوانی هر مقدار روشنایی (0 تا 255) با NumPy خالص"""
@@ -160,7 +184,7 @@ def plot_and_savehistogram(hist_dict,save_path):
 
        
        
-def process_single_image(img, op, value=None):
+def process_single_image(img, op, value=None,hsv_bounds=None):
 
     start_time = time.perf_counter()
 
@@ -187,8 +211,12 @@ def process_single_image(img, op, value=None):
     elif op == "threshold":
         result = apply_threshold(img, value)
 
-    
+    elif op == "color_filter" :
+        lower_hsv = hsv_bounds[:3]
+        upper_hsv = hsv_bounds[3:]
+        result = apply_color_filter(img, lower_hsv, upper_hsv)    
 
+    
     elapsed_time = time.perf_counter() - start_time
     return result, elapsed_time
 
@@ -220,7 +248,7 @@ def process_folder(folder_path, out_dir,args):
         c = img.shape[2] if len(img.shape) == 3 else 1
         dims = f"{w}*{h}*{c}"
 
-        result, elapsed_time = process_single_image(img, args.op, args.value)
+        result, elapsed_time = process_single_image(img, args.op, args.value, args.hsv_bounds)
 
         stem = img_path.stem
         if args.op =="split":
@@ -240,6 +268,13 @@ def process_folder(folder_path, out_dir,args):
         elif args.op == "histogram":
             plot_path = out_dir / f"{stem}_hist.png"
             plot_and_savehistogram(result, plot_path)   
+
+
+        elif args.op == "color_filter":
+            filtered_img, pct = result
+            out_file = out_dir / f"{stem}_filtered.png"
+            cv2.imwrite(str(out_file), filtered_img)
+            print(f"  [INFO] Color mask covers: {pct:.2f}% of the image.")
 
         else:
             out_file = out_dir / f"{stem}_{args.op}.png"
@@ -281,7 +316,7 @@ def main():
                 print("Error: --value must be between -255 and 255.")
                 sys.exit(1)   
 
-
+    
     if args.op == "threshold" :
     
         if args.value is None:
@@ -350,8 +385,24 @@ def main():
     
         if args.benchmark:
            print(f"⏱️ Execution Time for 'histogram': {elapsed_time:.6f} seconds")
-        print(f"Done: split channels saved to {args.output}/")
-        
+           print(f"Done: split channels saved to {args.output}/")
+
+
+    elif args.op == "color_filter":
+        if args.output is None:
+            print("Error: --output is required for 'color_filter' operation.")
+            sys.exit(1)  
+        (filtered_img,pct), elapsed_time = process_single_image(
+            img, "color_filter" , hsv_bounds=args.hsv_bounds
+            )
+        print(f"[INFO] Color mask covers: {pct:.2f}% of the image.")
+
+        if args.benchmark:
+            print(f"⏱️ Execution Time for 'color_filter': {elapsed_time:.6f} seconds")
+
+        cv2.imwrite(args.output, filtered_img)   
+        print(f"[SUCCESS] Saved output to {args.output}") 
+
     else:
 
         if args.output is None:
