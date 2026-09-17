@@ -17,7 +17,6 @@ def parse_arguments():
     )
     parser.add_argument(
         "--input",
-        required=True ,
         help="path to an input image or folder"
     )
 
@@ -59,6 +58,12 @@ def parse_arguments():
         type=int,
         metavar=('H_MIN' , 'S_MIN' , 'V_MIN' , 'H_MAX' , 'S_MAX' , 'V_MAX'),
         help=  "6 values: H_min S_min V_min H_max S_max V_max"  
+    )
+
+    parser.add_argument(
+        "--webcam" , 
+        action = "store_true" , 
+        help="Enable live webcam processing mode"
     )
 
     return parser.parse_args()
@@ -290,14 +295,83 @@ def process_folder(folder_path, out_dir,args):
 
     print("\n✅ All images processed successfully!")
     print(f"📁 Output files and log saved to: {out_dir}/log.csv")
+
+
+def process_webcam(args):
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        return
+    print("\n🎥 Webcam started. Press 'q' to quit, 's' to save.")
+    prev_time = time.perf_counter()
+    save_counter = 1
+
+    try:
+        while True :
+            ret , frame = cap.read()
+            if not ret : break
+
+            curr = time.perf_counter()
+            fps = 1.0 / (curr - prev_time) if  (curr - prev_time) > 0 else 0
+            prev_time = curr
+
+
+            op_to_run = "gray" if args.op == "gray_loop" else args.op
+            result, _ = process_single_image(frame, op_to_run, args.value, args.hsv_bounds)
+
+            if args.op == "color_filter": 
+                processed_frame, _ = result
+            elif args.op in ["split", "hsv_split"]:
+                processed_frame = result[0]
+            elif args.op == "histogram": 
+                processed_frame = frame
+            else: 
+                processed_frame = result
+
+            fps_text = f"FPS: {fps:.1f}"
+            cv2.putText(frame , fps_text , (20,40) , cv2.FONT_HERSHEY_SIMPLEX , 0.9 , (0,255,0),2)
+
+            cv2.imshow ("originl" , frame)
+            cv2.imshow ("processed", processed_frame)
+
+            key =   cv2.waitKey(1) & 0xFF
+            if key == ord('q'): break
+            elif key == ord('s'):
+                cv2.imwrite(f"snap_{save_counter}_origin.png" , frame)
+                cv2.imwrite(f"snap_{save_counter}_{args.op}.png" , processed_frame)
+                save_counter += 1
+
+    finally:        
+        cap.release()
+        cv2.destroyAllWindows()
+
+   
     
     
 def main():
+
+
+    
+
     args = parse_arguments()
+
+    if args.webcam:
+
+        if args.op in ("brightness", "threshold") and args.value is None:
+            print(f"Error: --value is required for '{args.op}' in webcam mode.")
+            sys.exit(1)
+
+        if args.op == "color_filter" and not args.hsv_bounds:
+            print("Error: --hsv-bounds is required for 'color_filter' in webcam mode.")
+            sys.exit(1)
+
+        process_webcam(args)
+        return
+
     input_path = Path(args.input)
 
     if not input_path.exists():
-        print(f"Error input_path dose not exist : {input_path}")
+        print(f"Error input_path or webcam dose not required : {input_path}")
         sys.exit(1)
             
     if input_path.is_dir():
@@ -316,6 +390,9 @@ def main():
                 print("Error: --value must be between -255 and 255.")
                 sys.exit(1)   
 
+    
+
+    
     
     if args.op == "threshold" :
     
